@@ -22,11 +22,9 @@ cd       build
       --host=$LFS_TGT                    \
       --build=$(../scripts/config.guess) \
       --disable-profile                  \
-      --enable-kernel=2.6.32             \
-      --enable-obsolete-rpc              \
+      --enable-kernel=4.13                \
       --with-headers=$CROSS/include      \
       libc_cv_forced_unwind=yes          \
-      libc_cv_ctors_header=yes           \
       libc_cv_c_cleanup=yes
 
 $MAKE $MFLAGS
@@ -45,15 +43,22 @@ cd $BUILDTMP
 tar xvf $SRCROOT/$GCC_TAR
 cd $GCC_SRC
 
-tar -xf $SRCROOT/$MPFR_TAR
-mv -v $MPFR_SRC mpfr
-tar -xf $SRCROOT/$GMP_TAR
-mv -v $GMP_SRC gmp
-tar -xf $SRCROOT/$MPC_TAR
-mv -v $MPC_SRC mpc
+case "$UNAMEM" in
+		i386|i486|i586|i686|amd64|x86_64)
+      tar -xf $SRCROOT/$MPFR_TAR
+      mv -v $MPFR_SRC mpfr
+      tar -xf $SRCROOT/$GMP_TAR
+      mv -v $GMP_SRC gmp
+      tar -xf $SRCROOT/$MPC_TAR
+      mv -v $MPC_SRC mpc
+			;;
+		armv7l|armhf|armv8l|aarch64)
+      ./contrib/download_prerequisites
+			;;
+	esac
 
 for file in \
- $(find gcc/config -name linux64.h -o -name linux.h -o -name sysv4.h)
+ $(find gcc/config -name linux64.h -o -name linux.h -o -name sysv4.h -o -name aarch64-linux.h -o -name linux-eabi.h)
 do
   cp -uv $file{,.orig}
   sed -e "s@/lib\(64\)\?\(32\)\?/ld@$CROSS&@g" \
@@ -66,6 +71,17 @@ do
   touch $file.orig
 done
 
+case $(uname -m) in
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' \
+        -i.orig gcc/config/i386/t-linux64
+ ;;
+  aarch64)
+	sed -e '/mabi.lp64=/s/lib64/lib/' \
+        -i.orig gcc/config/aarch64/t-aarch64-linux
+ ;;
+esac
+
 mkdir -v build
 cd       build
 
@@ -76,7 +92,7 @@ cd       build
     --disable-nls                   \
     --disable-libstdcxx-threads     \
     --disable-libstdcxx-pch         \
-    --with-gxx-include-dir=$CROSS/$LFS_TGT/include/c++/5.3.0
+    --with-gxx-include-dir=$CROSS/$LFS_TGT/include/c++/7.3.0
 
 $MAKE $MFLAGS
 $MAKE $MFLAGS install
@@ -116,16 +132,22 @@ cd $GCC_SRC
 cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
   `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/include-fixed/limits.h
 
-
-tar -xf $SRCROOT/$MPFR_TAR
-mv -v $MPFR_SRC mpfr
-tar -xf $SRCROOT/$GMP_TAR
-mv -v $GMP_SRC gmp
-tar -xf $SRCROOT/$MPC_TAR
-mv -v $MPC_SRC mpc
+case "$UNAMEM" in
+		i386|i486|i586|i686|amd64|x86_64)
+      tar -xf $SRCROOT/$MPFR_TAR
+      mv -v $MPFR_SRC mpfr
+      tar -xf $SRCROOT/$GMP_TAR
+      mv -v $GMP_SRC gmp
+      tar -xf $SRCROOT/$MPC_TAR
+      mv -v $MPC_SRC mpc
+			;;
+		armv7l|armhf|armv8l|aarch64)
+      ./contrib/download_prerequisites
+			;;
+	esac
 
 for file in \
- $(find gcc/config -name linux64.h -o -name linux.h -o -name sysv4.h)
+ $(find gcc/config -name linux64.h -o -name linux.h -o -name sysv4.h -o -name aarch64-linux.h -o -name linux-eabi.h)
 do
   cp -uv $file{,.orig}
   sed -e "s@/lib\(64\)\?\(32\)\?/ld@$CROSS&@g" \
@@ -137,6 +159,13 @@ do
 #define STANDARD_STARTFILE_PREFIX_2 \"\"" >> $file
   touch $file.orig
 done
+
+case $(uname -m) in
+  x86_64|aarch64)
+    sed -e '/m64=/s/lib64/lib/' \
+        -i.orig gcc/config/i386/t-linux64
+ ;;
+esac
 
 mkdir -v build
 cd       build
@@ -153,7 +182,7 @@ RANLIB=$LFS_TGT-ranlib                             \
     --disable-libgomp                              \
     --disable-bootstrap                            \
     --disable-libstdcxx-pch                        \
-    --enable-languages=c,c++
+    --enable-languages=c,c++ $GFLAGS
 
 $MAKE $MFLAGS
 $MAKE $MFLAGS install
