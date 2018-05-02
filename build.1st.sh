@@ -22,7 +22,7 @@ cd build
 $MAKE $MFLAGS
 
 case $(uname -m) in
-  x86_64) mkdir -v $CROSS/lib && ln -sv lib $CROSS/lib64 ;;
+  x86_64|aarch64) mkdir -v $CROSS/lib && ln -sv lib $CROSS/lib64 ;;
 esac
 
 $MAKE $MFLAGS install
@@ -64,9 +64,13 @@ do
 done
 
 case $(uname -m) in
-  x86_64|aarch64)
+  x86_64)
     sed -e '/m64=/s/lib64/lib/' \
         -i.orig gcc/config/i386/t-linux64
+ ;;
+  aarch64)
+	sed -e '/mabi.lp64=/s/lib64/lib/' \
+        -i.orig gcc/config/aarch64/t-aarch64-linux
  ;;
 esac
 
@@ -76,7 +80,7 @@ cd       build
 ../configure                                       \
     --target=$LFS_TGT                              \
     --prefix=$CROSS                                \
-    --with-glibc-version=2.11                      \
+    --with-glibc-version=2.27                      \
     --with-sysroot=$LFS                            \
     --with-newlib                                  \
     --without-headers                              \
